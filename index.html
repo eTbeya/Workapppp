@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+  <title>Дистрибутор – Контрол</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f7f8fb; --card:#ffffff; --card-2:#fcfdff; --border:#e6eaf2;
+      --text:#0f172a; --muted:#6b7280; --accent:#2563eb; --success:#16a34a;
+      --warning:#d97706; --danger:#dc2626; --purple:#7c3aed; --ring: rgba(37,99,235,.25);
+    }
+    html,body{background:var(--bg); color:var(--text); -webkit-tap-highlight-color: transparent;}
+    .app-header{position:sticky; top:0; z-index:40; background:linear-gradient(180deg,#fff,rgba(255,255,255,.9)); backdrop-filter:saturate(180%) blur(8px); border-bottom:1px solid var(--border)}
+    .title h1{font-size:1.05rem; margin:0; font-weight:700; letter-spacing:.2px}
+    .toolbar{display:flex; gap:.4rem; flex-wrap:nowrap}
+    .btn-ico{--size:36px;width:var(--size);height:var(--size);display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid var(--border);background:#f6f9ff;font-weight:800;letter-spacing:.3px;font-size:.9rem;color:#1f2937;box-shadow:0 1px 0 rgba(15,23,42,.04),0 1px 8px rgba(15,23,42,.06);transition:transform .07s,box-shadow .15s,background .2s}
+    .btn-ico:active{transform:translateY(1px)}
+    .btn-ico[data-variant="pri"]{color:#0b3bdb;border-color:#dae6ff;background:linear-gradient(180deg,#eef4ff,#e9f1ff)}
+    .btn-ico[data-variant="succ"]{color:#046b38;border-color:#d8f1e4;background:linear-gradient(180deg,#ecfff6,#e7fdf2)}
+    .btn-ico[data-variant="mut"]{color:#334155;border-color:#e8eef6;background:linear-gradient(180deg,#f6f9ff,#f2f6fd)}
+    .btn-ico[data-variant="destr"]{color:#9f1239;border-color:#ffd7df;background:linear-gradient(180deg,#fff0f3,#ffe8ec)}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:0 8px 30px rgba(15,23,42,.04)}
+    .section-title{display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem}
+    .section-title .dot{width:10px; height:10px; border-radius:50%; background:var(--accent)}
+    .chip{background:#eef4ff; color:#2445b5; padding:.2rem .45rem; border-radius:999px; font-weight:700; font-size:.8rem}
+    .shop-card{border-radius:14px; border:1px solid var(--border); background:var(--card-2)}
+    .shop-header{display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.7rem .85rem; cursor:pointer;}
+    .shop-title{display:flex; flex-direction:column; min-width:0}
+    .shop-title .name{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .shop-title .meta{font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums}
+    .shop-actions{display:flex; gap:.35rem}
+    .shop-actions .btn{border-radius:10px}
+    .shop-body{padding:.9rem .85rem 1rem .85rem; border-top:1px dashed var(--border)}
+    .grid-compact{display:grid; grid-template-columns:1fr 1fr; gap:.7rem}
+    .grid-compact .full{grid-column:1 / -1}
+    .form-control,.form-select{border-radius:12px; border:1px solid var(--border); background:#fff}
+    .form-control:focus{box-shadow:0 0 0 .25rem var(--ring); border-color:#cfe0ff}
+    .table{--bs-table-bg:transparent; --bs-table-striped-bg:#f9fbff}
+    .table thead th{position:sticky; top:0; background:#fff; z-index:1; border-bottom:1px solid var(--border)}
+    .table tbody td{border-top:1px solid var(--border)}
+    .table-striped>tbody>tr:nth-of-type(odd)>*{background:var(--bs-table-striped-bg)}
+    .table .text-end{font-variant-numeric:tabular-nums}
+    .totals-row{display:flex; justify-content:flex-end; gap:1rem; font-weight:700; font-variant-numeric:tabular-nums}
+    @media (max-width:480px){.btn-ico{--size:34px;font-size:.85rem;border-radius:10px}.title h1{font-size:1rem}.grid-compact{grid-template-columns:1fr 1fr}.shop-header{padding:.6rem .7rem}.shop-body{padding:.8rem .7rem 1rem}.card{border-radius:16px}}
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <div class="container py-2 d-flex align-items-center justify-content-between">
+      <div class="toolbar">
+        <button class="btn-ico" title="Магазини" aria-label="Магазини" data-scroll="#shops">М</button>
+        <button class="btn-ico" title="Доставка" aria-label="Доставка" data-scroll="#delivery" data-variant="pri">Д</button>
+        <button class="btn-ico" title="Брак (обиколка)" aria-label="Брак" data-scroll="#waste">БО</button>
+        <button class="btn-ico" title="Приключени дни" aria-label="Дни" data-scroll="#days" data-variant="succ">Дн</button>
+        <button class="btn-ico" title="Седмици (Пон–Пет)" aria-label="Седмици" data-scroll="#weeks" data-variant="mut">С</button>
+        <button id="exportBtn" class="btn-ico" title="Експорт" aria-label="Експорт" data-variant="pri">ЕК</button>
+        <label class="btn-ico d-inline-flex align-items-center justify-content-center" title="Импорт" aria-label="Импорт" style="cursor:pointer;">ИМ
+          <input id="importInput" type="file" accept=".json" hidden>
+        </label>
+        <button id="resetAll" class="btn-ico" title="Нулирай" aria-label="Нулирай" data-variant="destr">НУ</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="container py-3">
+    <!-- Магазини -->
+    <section id="shops" class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="section-title"><span class="dot"></span><h2 class="h6 m-0">Магазини</h2><span class="chip">авто-краен</span></div>
+          <div class="d-flex gap-2">
+            <button id="addShop" class="btn btn-sm btn-primary">+ Магазин</button>
+            <button id="endDay" class="btn btn-sm btn-warning">Приключи</button>
+          </div>
+        </div>
+        <div id="shopsList" class="d-flex flex-column gap-2"></div>
+        <div class="mt-3"><div class="totals-row"><div>Общо краен оборот: <span id="totalNet">0.00 лв.</span></div></div></div>
+      </div>
+    </section>
+
+    <!-- Приключени дни -->
+    <section id="days" class="card mb-4">
+      <div class="card-body">
+        <div class="section-title mb-2"><span class="dot" style="background:var(--success)"></span><h2 class="h6 m-0">Приключени дни</h2></div>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead><tr><th>Дата</th><th class="text-end">Оборот</th><th class="text-end">Брак</th><th class="text-end">Краен</th><th class="text-end">Детайли</th><th class="text-end">Действие</th></tr></thead>
+            <tbody id="daysTbody"><tr><td colspan="6" class="muted">Няма данни.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Седмици (Пон–Пет) -->
+    <section id="weeks" class="card mb-4">
+      <div class="card-body">
+        <div class="section-title mb-2"><span class="dot" style="background:var(--accent)"></span><h2 class="h6 m-0">Седмични суми (Пон–Пет)</h2></div>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead><tr><th>Седмица</th><th class="text-end">Общо оборот</th><th class="text-end">Общо брак</th><th class="text-end">Общо краен</th></tr></thead>
+            <tbody id="weeksTbody"><tr><td colspan="4" class="muted">Няма данни.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Доставка -->
+    <section id="delivery" class="card mb-4">
+      <div class="card-body">
+        <div class="section-title mb-3"><span class="dot" style="background:var(--warning)"></span><h2 class="h6 m-0">Доставка</h2></div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card"><div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2"><div><div class="fw-semibold">Базлма</div><div class="muted small">Фиксирана цена</div></div><span class="badge text-bg-primary">1,55 лв.</span></div>
+              <div class="row g-2">
+                <div class="col-6"><label class="form-label">Брой</label><input id="qtyBaz" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg" placeholder="0"></div>
+                <div class="col-6"><label class="form-label">Сума</label><input id="sumBaz" type="text" class="form-control form-control-lg" value="0.00" readonly></div>
+              </div>
+            </div></div>
+          </div>
+          <div class="col-md-6">
+            <div class="card"><div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2"><div><div class="fw-semibold">Мини базлма</div><div class="muted small">Фиксирана цена</div></div><span class="badge text-bg-primary">0,55 лв.</span></div>
+              <div class="row g-2">
+                <div class="col-6"><label class="form-label">Брой</label><input id="qtyMini" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg" placeholder="0"></div>
+                <div class="col-6"><label class="form-label">Сума</label><input id="sumMini" type="text" class="form-control form-control-lg" value="0.00" readonly></div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+        <hr class="my-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="fs-6">Крайна сума: <strong id="deliveryTotal">0.00 лв.</strong></div>
+          <div class="d-flex gap-2">
+            <button id="finalizeDelivery" class="btn btn-sm btn-success">Приключи</button>
+            <button id="clearDelivery" class="btn btn-sm btn-outline-secondary">Изчисти</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Брак -->
+    <section id="waste" class="card mb-4">
+      <div class="card-body">
+        <div class="section-title mb-3"><span class="dot" style="background:var(--purple)"></span><h2 class="h6 m-0">Брак (обиколка)</h2></div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card"><div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2"><div><div class="fw-semibold">Базлма – Брак</div><div class="muted small">Фиксирана цена</div></div><span class="badge text-bg-secondary">1,55 лв.</span></div>
+              <div class="row g-2">
+                <div class="col-6"><label class="form-label">Брой</label><input id="qtyBazWaste" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg" placeholder="0"></div>
+                <div class="col-6"><label class="form-label">Сума</label><input id="sumBazWaste" type="text" class="form-control form-control-lg" value="0.00" readonly></div>
+              </div>
+            </div></div>
+          </div>
+          <div class="col-md-6">
+            <div class="card"><div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2"><div><div class="fw-semibold">Мини базлма – Брак</div><div class="muted small">Фиксирана цена</div></div><span class="badge text-bg-secondary">0,55 лв.</span></div>
+              <div class="row g-2">
+                <div class="col-6"><label class="form-label">Брой</label><input id="qtyMiniWaste" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg" placeholder="0"></div>
+                <div class="col-6"><label class="form-label">Сума</label><input id="sumMiniWaste" type="text" class="form-control form-control-lg" value="0.00" readonly></div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+        <hr class="my-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="fs-6">Общо брак: <strong id="wasteTotal">0.00 лв.</strong></div>
+          <div class="d-flex gap-2">
+            <button id="finalizeWaste" class="btn btn-sm btn-outline-dark">Добави</button>
+            <button id="clearWaste" class="btn btn-sm btn-outline-secondary">Изчисти</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Истории -->
+    <section class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="section-title"><span class="dot" style="background:var(--accent)"></span><h2 class="h6 m-0">Списък с доставки</h2></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead><tr><th>Дата</th><th class="text-end">Базлма (бр.)</th><th class="text-end">Мини (бр.)</th><th class="text-end">Сума (лв.)</th><th class="text-end">Действие</th></tr></thead>
+            <tbody id="deliveriesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card mb-5">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="section-title"><span class="dot" style="background:var(--purple)"></span><h2 class="h6 m-0">Списък с бракове</h2></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead><tr><th>Дата</th><th class="text-end">Базлма (бр.)</th><th class="text-end">Мини (бр.)</th><th class="text-end">Сума (лв.)</th><th class="text-end">Действие</th></tr></thead>
+            <tbody id="wastesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  (() => {
+    const PRICE_BAZ=1.55, PRICE_MINI=0.55;
+
+    // DOM
+    const shopsList=document.getElementById('shopsList');
+    const totalNetEl=document.getElementById('totalNet');
+    const addShopBtn=document.getElementById('addShop');
+    const endDayBtn=document.getElementById('endDay');
+    const daysTbody=document.getElementById('daysTbody');
+    const weeksTbody=document.getElementById('weeksTbody');
+    const qtyBaz=document.getElementById('qtyBaz');
+    const qtyMini=document.getElementById('qtyMini');
+    const sumBaz=document.getElementById('sumBaz');
+    const sumMini=document.getElementById('sumMini');
+    const deliveryTotal=document.getElementById('deliveryTotal');
+    const finalizeDeliveryBtn=document.getElementById('finalizeDelivery');
+    const clearDeliveryBtn=document.getElementById('clearDelivery');
+    const qtyBazWaste=document.getElementById('qtyBazWaste');
+    const qtyMiniWaste=document.getElementById('qtyMiniWaste');
+    const sumBazWaste=document.getElementById('sumBazWaste');
+    const sumMiniWaste=document.getElementById('sumMiniWaste');
+    const wasteTotal=document.getElementById('wasteTotal');
+    const finalizeWasteBtn=document.getElementById('finalizeWaste');
+    const clearWasteBtn=document.getElementById('clearWaste');
+    const deliveriesTbody=document.getElementById('deliveriesTbody');
+    const wastesTbody=document.getElementById('wastesTbody');
+    const exportBtn=document.getElementById('exportBtn');
+    const importInput=document.getElementById('importInput');
+    const resetAllBtn=document.getElementById('resetAll');
+
+    // State
+    let shops=load('shops',[]);       // [{name, turnover, waste, note}]
+    let deliveries=load('deliveries',[]);
+    let days=load('days',[]);         // [{date, isoDate, ts, ...}]
+    let wastes=load('wastes',[]);
+
+    // Utils
+    function load(k,f){ try{const r=localStorage.getItem(k); return r?JSON.parse(r):f;}catch{return f;} }
+    function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+    function fmt(n){ return (Math.round(n*100)/100).toFixed(2); }
+    function money(n){ return fmt(n)+' лв.'; }
+
+    // ПО-СТРОГ ПАРСЕР: празно/интервали/запетайки → число; иначе 0
+    function num(v){
+      if(v===null || v===undefined) return 0;
+      const s=String(v).trim().replace(/\s+/g,'').replace(',', '.');
+      if(s==='') return 0;
+      const n=parseFloat(s);
+      return isNaN(n)?0:n;
+    }
+
+    const now=()=>new Date();
+    const nowBG=()=> now().toLocaleString('bg-BG');
+    const isoDate=d=> d.toISOString().slice(0,10);
+    function parseBGorISO(str){
+      const m=/(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(str||'');
+      if(m){ const [_,dd,mm,yyyy]=m; return new Date(`${yyyy}-${mm}-${dd}T00:00:00`); }
+      const d=new Date(str); return isNaN(d)? new Date(): d;
+    }
+    function dayToDate(d){ if(d.ts) return new Date(d.ts); if(d.isoDate) return new Date(d.isoDate); if(d.date) return parseBGorISO(d.date); return new Date(); }
+    function weekKeyMonFri(ts){ const d=new Date(ts); const w=(d.getDay()+6)%7; const mon=new Date(d); mon.setHours(0,0,0,0); mon.setDate(d.getDate()-w); const fri=new Date(mon); fri.setDate(mon.getDate()+4); return `${isoDate(mon)} → ${isoDate(fri)}`; }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function attachInputUX(el){ el.addEventListener('focus', e=>e.target.select()); el.addEventListener('beforeinput', e=>{ if(e.inputType==='insertText' && e.target.value==='0'){ e.target.value=''; } }); }
+    function cryptoRandom(){ return (self.crypto?.getRandomValues ? [...self.crypto.getRandomValues(new Uint32Array(2))].join('') : String(Math.random()).slice(2)); }
+    function smoothScrollTo(sel){ const el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }
+    document.querySelectorAll('.btn-ico[data-scroll]').forEach(btn=>btn.addEventListener('click', ()=>smoothScrollTo(btn.getAttribute('data-scroll'))));
+
+    // Shops (accordion cards)
+    function addShopCard(data={name:'', turnover:'', waste:'', note:''}){
+      const idx=cryptoRandom();
+      const card=document.createElement('div');
+      card.className='shop-card'; card.dataset.idx=idx;
+      card.innerHTML=`
+        <div class="shop-header" data-role="toggle">
+          <div class="shop-title">
+            <div class="name">${escapeHtml(data.name||'Магазин')}</div>
+            <div class="meta">Краен: <span class="meta-net">0.00 лв.</span></div>
+          </div>
+          <div class="shop-actions">
+            <button class="btn btn-sm btn-outline-danger" data-role="delete" title="Изтрий">Изтрий</button>
+            <button class="btn btn-sm btn-outline-secondary" data-role="collapse" title="Сгъни">▲</button>
+          </div>
+        </div>
+        <div class="shop-body">
+          <div class="grid-compact">
+            <div>
+              <label class="form-label">Име</label>
+              <input type="text" class="form-control shop-name" placeholder="Магазин Х" value="${escapeHtml(data.name||'')}">
+            </div>
+            <div>
+              <label class="form-label">Бележка</label>
+              <input type="text" class="form-control shop-note" placeholder="Бележка…" value="${escapeHtml(data.note||'')}">
+            </div>
+            <div>
+              <label class="form-label">Оборот (лв.)</label>
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-control shop-turnover" placeholder="0.00" value="${data.turnover===0?'':(data.turnover??'')}">
+            </div>
+            <div>
+              <label class="form-label">Брак (лв.)</label>
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="form-control shop-waste" placeholder="0.00" value="${data.waste===0?'':(data.waste??'')}">
+            </div>
+            <div class="full"><div class="muted small">Краен = Оборот − Брак</div></div>
+          </div>
+        </div>`;
+      shopsList.appendChild(card);
+
+      const nameI=card.querySelector('.shop-name');
+      const noteI=card.querySelector('.shop-note');
+      const turnI=card.querySelector('.shop-turnover');
+      const wasteI=card.querySelector('.shop-waste');
+      [turnI,wasteI].forEach(attachInputUX);
+
+      const updateHeader=()=>{
+        const t=num(turnI.value);
+        const w=num(wasteI.value);              // ако е празно → 0
+        const net = Math.max(0, t - w);         // ако няма брак → net = оборот
+        card.querySelector('.meta-net').textContent=money(net);
+        card.querySelector('.shop-title .name').textContent=(nameI.value||'Магазин');
+        updateTotalNet(); syncShops();
+      };
+      nameI.addEventListener('input', updateHeader);
+      noteI.addEventListener('input', updateHeader);
+      turnI.addEventListener('input', updateHeader);
+      wasteI.addEventListener('input', updateHeader);
+
+      // Collapse logic
+      const header=card.querySelector('[data-role="toggle"]');
+      const btnCollapse=card.querySelector('[data-role="collapse"]');
+      const body=card.querySelector('.shop-body');
+      let collapsed=false;
+      function setCollapsed(v){ collapsed=v; body.style.display=collapsed?'none':''; btnCollapse.textContent=collapsed?'▼':'▲'; }
+      header.addEventListener('click', e=>{ if(e.target.closest('button')) return; setCollapsed(!collapsed); });
+      btnCollapse.addEventListener('click', ()=> setCollapsed(!collapsed));
+      Array.from(shopsList.children).forEach(c=>{ if(c!==card){ const b=c.querySelector('.shop-body'); const btn=c.querySelector('[data-role="collapse"]'); if(b){ b.style.display='none'; if(btn) btn.textContent='▼'; } }});
+      setCollapsed(false);
+      updateHeader();
+    }
+
+    // Delegated delete
+    shopsList.addEventListener('click', (e)=>{
+      const delBtn=e.target.closest('[data-role="delete"]');
+      if(delBtn){ const card=delBtn.closest('.shop-card'); if(card){ card.remove(); syncShops(); updateTotalNet(); } }
+    });
+
+    function updateTotalNet(){
+      let total=0;
+      shopsList.querySelectorAll('.shop-card').forEach(card=>{
+        const t=num(card.querySelector('.shop-turnover').value);
+        const w=num(card.querySelector('.shop-waste').value); // празно → 0
+        total += Math.max(0, t - w);
+      });
+      totalNetEl.textContent=money(total);
+    }
+
+    function syncShops(){
+      shops=Array.from(shopsList.querySelectorAll('.shop-card')).map(card=>{
+        const t=num(card.querySelector('.shop-turnover').value);
+        const w=num(card.querySelector('.shop-waste').value);
+        return {
+          name: card.querySelector('.shop-name').value.trim(),
+          turnover: t,
+          waste: w,
+          note: card.querySelector('.shop-note').value.trim()
+        };
+      });
+      save('shops', shops);
+    }
+
+    function renderShops(){
+      shopsList.innerHTML='';
+      shops.forEach(addShopCard);
+      updateTotalNet();
+    }
+
+    // End day – чисти напълно списъка
+    function endDay(){
+      const hasData=shops.some(s=>(s.name||'').length || s.turnover>0 || s.waste>0 || (s.note||'').length);
+      if(!hasData){ alert('Няма въведени данни за деня.'); return; }
+
+      const totals=shops.reduce((a,s)=>{
+        const t = Number(s.turnover)||0;
+        const w = Number(s.waste)||0;
+        a.turnover += t;
+        a.waste    += w;
+        a.net      += Math.max(0, t - w); // ако няма брак → добавя целия оборот
+        return a;
+      },{turnover:0,waste:0,net:0});
+
+      const d=now();
+      const entry={
+        date:d.toLocaleString('bg-BG'), isoDate:isoDate(d), ts:d.getTime(),
+        turnover:+fmt(totals.turnover), waste:+fmt(totals.waste), net:+fmt(totals.net),
+        shops: shops.map(s=>{
+          const t=Number(s.turnover)||0, w=Number(s.waste)||0;
+          return {name:s.name, turnover:+fmt(t), waste:+fmt(w), net:+fmt(Math.max(0,t-w)), note:s.note||''};
+        })
+      };
+      days.unshift(entry); save('days',days); renderDays(); renderWeeks();
+
+      shops=[]; save('shops',shops);
+      shopsList.innerHTML=''; updateTotalNet();
+    }
+
+    // Days
+    function renderDays(){
+      daysTbody.innerHTML='';
+      if(!days.length){ daysTbody.innerHTML='<tr><td colspan="6" class="muted">Няма данни.</td></tr>'; return; }
+      days.forEach((d,i)=>{
+        const rowId=`daydet-${i}`;
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${d.date}</td>
+          <td class="text-end">${money(d.turnover)}</td>
+          <td class="text-end">${money(d.waste)}</td>
+          <td class="text-end"><strong>${money(d.net)}</strong></td>
+          <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#${rowId}">Детайли</button></td>
+          <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
+        const details=document.createElement('tr');
+        details.innerHTML=`
+          <td colspan="6" class="p-0">
+            <div id="${rowId}" class="collapse">
+              <div class="p-3">
+                <div class="table-responsive">
+                  <table class="table table-sm mb-0 table-striped">
+                    <thead><tr><th>#</th><th>Магазин</th><th class="text-end">Оборот</th><th class="text-end">Брак</th><th class="text-end">Краен</th><th>Бележка</th></tr></thead>
+                    <tbody>
+                      ${(d.shops||[]).map((s,ix)=>`
+                        <tr>
+                          <td>${ix+1}</td>
+                          <td>${escapeHtml(s.name||'-')}</td>
+                          <td class="text-end">${money(s.turnover||0)}</td>
+                          <td class="text-end">${money(s.waste||0)}</td>
+                          <td class="text-end">${money(s.net||0)}</td>
+                          <td>${escapeHtml(s.note||'')}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </td>`;
+        tr.querySelector('button.btn-outline-danger').addEventListener('click', (e)=>{
+          const idx=parseInt(e.currentTarget.getAttribute('data-i'),10);
+          if(confirm('Изтриване на приключения ден?')){ days.splice(idx,1); save('days',days); renderDays(); renderWeeks(); }
+        });
+        daysTbody.appendChild(tr); daysTbody.appendChild(details);
+      });
+    }
+
+    // Weeks (Mon–Fri)
+    function renderWeeks(){
+      weeksTbody.innerHTML='';
+      if(!days.length){ weeksTbody.innerHTML='<tr><td colspan="4" class="muted">Няма данни.</td></tr>'; return; }
+      const map={};
+      for(const d of days){
+        const dt=dayToDate(d);
+        const key=weekKeyMonFri(dt.getTime());
+        if(!map[key]) map[key]={turnover:0,waste:0,net:0};
+        map[key].turnover+=Number(d.turnover)||0;
+        map[key].waste+=Number(d.waste)||0;
+        map[key].net+=Number(d.net)||0;
+      }
+      const rows=Object.entries(map)
+        .sort((a,b)=> new Date(b[0].slice(0,10)) - new Date(a[0].slice(0,10)))
+        .map(([wk,v])=>`
+          <tr>
+            <td>${wk}</td>
+            <td class="text-end">${money(v.turnover)}</td>
+            <td class="text-end">${money(v.waste)}</td>
+            <td class="text-end"><strong>${money(v.net)}</strong></td>
+          </tr>`).join('');
+      weeksTbody.innerHTML=rows||'<tr><td colspan="4" class="muted">Няма данни.</td></tr>';
+    }
+
+    // Deliveries
+    function updateDeliverySums(){
+      const qB=Math.max(0, parseInt(qtyBaz.value||0,10));
+      const qM=Math.max(0, parseInt(qtyMini.value||0,10));
+      const sB=qB*PRICE_BAZ, sM=qM*PRICE_MINI;
+      sumBaz.value=fmt(sB); sumMini.value=fmt(sM); deliveryTotal.textContent=money(sB+sM);
+    }
+    function addDeliveryRow(d,i){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${d.date}</td><td class="text-end">${d.qtyBaz}</td><td class="text-end">${d.qtyMini}</td><td class="text-end">${fmt(d.total)} лв.</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
+      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=parseInt(e.currentTarget.getAttribute('data-i'),10); deliveries.splice(idx,1); save('deliveries',deliveries); renderDeliveries(); });
+      deliveriesTbody.appendChild(tr);
+    }
+    function renderDeliveries(){ deliveriesTbody.innerHTML=''; deliveries.forEach((d,i)=>addDeliveryRow(d,i)); }
+
+    // Wastes
+    function updateWasteSums(){
+      const qB=Math.max(0, parseInt(qtyBazWaste.value||0,10));
+      const qM=Math.max(0, parseInt(qtyMiniWaste.value||0,10));
+      const sB=qB*PRICE_BAZ, sM=qM*PRICE_MINI;
+      sumBazWaste.value=fmt(sB); sumMiniWaste.value=fmt(sM); wasteTotal.textContent=money(sB+sM);
+    }
+    function addWasteRow(w,i){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${w.date}</td><td class="text-end">${w.qtyBaz}</td><td class="text-end">${w.qtyMini}</td><td class="text-end">${fmt(w.total)} лв.</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
+      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=parseInt(e.currentTarget.getAttribute('data-i'),10); wastes.splice(idx,1); save('wastes',wastes); renderWastes(); });
+      wastesTbody.appendChild(tr);
+    }
+    function renderWastes(){ wastesTbody.innerHTML=''; wastes.forEach((w,i)=>addWasteRow(w,i)); }
+
+    // Export / Import / Reset
+    function doExport(){
+      const payload={version:8, exportedAt: nowBG(), shops, deliveries, days, wastes};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`distributor-data-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+    }
+    function doImport(file){
+      const r=new FileReader();
+      r.onload=()=>{
+        try{
+          const data=JSON.parse(r.result);
+          if(data.shops){ shops=data.shops; save('shops',shops); renderShops(); }
+          if(data.deliveries){ deliveries=data.deliveries; save('deliveries',deliveries); renderDeliveries(); }
+          if(data.days){ days=data.days; save('days',days); renderDays(); renderWeeks(); }
+          if(data.wastes){ wastes=data.wastes; save('wastes',wastes); renderWastes(); }
+          alert('Импортът завърши успешно.');
+        }catch(e){ alert('Грешка при импорт: '+e.message); }
+      };
+      r.readAsText(file,'utf-8');
+    }
+
+    // Listeners
+    addShopBtn.addEventListener('click', ()=>{ addShopCard(); syncShops(); });
+    endDayBtn.addEventListener('click', endDay);
+
+    qtyBaz.addEventListener('input', updateDeliverySums);
+    qtyMini.addEventListener('input', updateDeliverySums);
+    clearDeliveryBtn.addEventListener('click', ()=>{ qtyBaz.value=''; qtyMini.value=''; updateDeliverySums(); });
+    finalizeDeliveryBtn.addEventListener('click', ()=>{
+      const qB=Math.max(0, parseInt(qtyBaz.value||0,10));
+      const qM=Math.max(0, parseInt(qtyMini.value||0,10));
+      if(qB===0 && qM===0){ alert('Въведи брой за поне един артикул.'); return; }
+      const total=qB*PRICE_BAZ + qM*PRICE_MINI;
+      deliveries.unshift({date:nowBG(), qtyBaz:qB, qtyMini:qM, total:Math.round(total*100)/100});
+      save('deliveries',deliveries); renderDeliveries();
+      qtyBaz.value=''; qtyMini.value=''; updateDeliverySums();
+    });
+
+    qtyBazWaste.addEventListener('input', updateWasteSums);
+    qtyMiniWaste.addEventListener('input', updateWasteSums);
+    clearWasteBtn.addEventListener('click', ()=>{ qtyBazWaste.value=''; qtyMiniWaste.value=''; updateWasteSums(); });
+    finalizeWasteBtn.addEventListener('click', ()=>{
+      const qB=Math.max(0, parseInt(qtyBazWaste.value||0,10));
+      const qM=Math.max(0, parseInt(qtyMiniWaste.value||0,10));
+      if(qB===0 && qM===0){ alert('Въведи брой за поне един артикул брак.'); return; }
+      const total=qB*PRICE_BAZ + qM*PRICE_MINI;
+      wastes.unshift({date:nowBG(), qtyBaz:qB, qtyMini:qM, total:Math.round(total*100)/100});
+      save('wastes',wastes); renderWastes();
+      qtyBazWaste.value=''; qtyMiniWaste.value=''; updateWasteSums();
+    });
+
+    exportBtn.addEventListener('click', doExport);
+    importInput.addEventListener('change', e=>{ const f=e.target.files?.[0]; if(f) doImport(f); e.target.value=''; });
+    resetAllBtn.addEventListener('click', ()=>{
+      if(!confirm('Изтриване на всички данни?')) return;
+      shops=[]; deliveries=[]; days=[]; wastes=[];
+      save('shops',shops); save('deliveries',deliveries); save('days',days); save('wastes',wastes);
+      renderShops(); renderDeliveries(); renderDays(); renderWeeks(); renderWastes();
+      updateDeliverySums(); updateWasteSums();
+    });
+
+    // Init
+    (function init(){
+      renderShops(); renderDeliveries(); renderDays(); renderWeeks(); renderWastes();
+      // при чисто стартиране, ако няма магазини – не добавям празен, за да е видимо "чисто".
+      updateDeliverySums(); updateWasteSums();
+    })();
+  })();
+  </script>
+  <script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
+}
+</script>
+</body>
+</html>
