@@ -55,6 +55,7 @@
 <body>
   <div class="app-header">
     <div class="container py-2 d-flex align-items-center justify-content-between">
+      <div class="title"><h1>Дистрибутор – Контрол</h1></div>
       <div class="toolbar">
         <button class="btn-ico" title="Магазини" aria-label="Магазини" data-scroll="#shops">М</button>
         <button class="btn-ico" title="Доставка" aria-label="Доставка" data-scroll="#delivery" data-variant="pri">Д</button>
@@ -500,22 +501,26 @@
 
     // ------- ПРИКЛЮЧЕНИ ДНИ -------
     function addDayRow(d, i){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${d.date}</td>
-        <td class="text-end">${money(d.turnover)}</td>
-        <td class="text-end">${money(d.waste)}</td>
-        <td class="text-end">${money(d.otherExpenses || 0)}</td>
-        <td class="text-end"><strong>${money(d.net)}</strong></td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary" data-action="day-details" data-i="${i}">Виж</button>
-        </td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-danger" data-action="del-day" data-i="${i}">Изтрий</button>
-        </td>
-      `;
-      daysTbody.appendChild(tr);
-    }
+  const hasNotes = (d.shops || []).some(s => (s.note || '').trim());
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${d.date}</td>
+    <td class="text-end">${money(d.turnover)}</td>
+    <td class="text-end">${money(d.waste)}</td>
+    <td class="text-end">${money(d.otherExpenses || 0)}</td>
+    <td class="text-end"><strong>${money(d.net)}</strong></td>
+    <td class="text-end">
+      <button class="btn btn-sm btn-outline-secondary" data-action="day-details" data-i="${i}">
+        Виж${hasNotes ? ' 📝' : ''}
+      </button>
+    </td>
+    <td class="text-end">
+      <button class="btn btn-sm btn-outline-danger" data-action="del-day" data-i="${i}">Изтрий</button>
+    </td>
+  `;
+  daysTbody.appendChild(tr);
+}
+
     function renderDays(){
       daysTbody.innerHTML='';
       if(!days.length){
@@ -623,14 +628,25 @@
     }
 
     // Детайли за деня
-    onClick('[data-action="day-details"]', (e, btn)=>{
-      const i = +btn.dataset.i;
-      const d = days[i];
-      const shopsTxt = (d.shops || []).map(s =>
-        `${s.name || '—'} · оборот: ${fmt(s.turnover)} · брак: ${fmt(s.waste)} · краен: ${fmt(s.net)}`
-      ).join('\n');
-      alert(`Дата: ${d.date}\nОборот: ${fmt(d.turnover)} лв.\nБрак: ${fmt(d.waste)} лв.\nРазходи: ${fmt(d.otherExpenses||0)} лв.\nКраен: ${fmt(d.net)} лв.\n\nМагазини:\n${shopsTxt || '—'}`);
-    });
+    // Детайли за деня (с бележки под всеки магазин)
+onClick('[data-action="day-details"]', (e, btn)=>{
+  const i = +btn.dataset.i;
+  const d = days[i];
+  const shopsTxt = (d.shops || []).map(s => {
+    const note = (s.note && String(s.note).trim()) ? `\nБележка: ${s.note.trim()}` : '';
+    return `${s.name || '—'} · оборот: ${fmt(s.turnover)} · брак: ${fmt(s.waste)} · краен: ${fmt(s.net)}${note}`;
+  }).join('\n\n');
+
+  alert(
+    `Дата: ${d.date}\n` +
+    `Оборот: ${fmt(d.turnover)} лв.\n` +
+    `Брак: ${fmt(d.waste)} лв.\n` +
+    `Разходи: ${fmt(d.otherExpenses||0)} лв.\n` +
+    `Краен: ${fmt(d.net)} лв.\n\n` +
+    (shopsTxt || 'Магазини: —')
+  );
+});
+
 
     // Изтриване на ден
     onClick('[data-action="del-day"]', (e, btn)=>{
@@ -719,4 +735,3 @@
   </script>
 </body>
 </html>
-
