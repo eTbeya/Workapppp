@@ -580,16 +580,18 @@ function endDay(){
   renderWeeks();
 
   // 2) Чистим текущите магазини и разходи + запис/рендър
-  shops = [];
-  save('shops', shops);
-  renderShops();
+shops = [];
+save('shops', shops);
+renderShops();
 
-  expenses = [];
-  save('expenses', expenses);
-  renderExpenses();
+expenses = [];
+save('expenses', expenses);
+renderExpenses();
 
-  // 3) Обновяваме живите тотали горе
-  recomputeTotalsToday();
+// 3) Обновяваме живите тотали горе (пресмятане + твърдо зануляване като защита)
+recomputeTotalsToday();
+if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
+if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = totalShopsNetEl ? totalShopsNetEl.textContent : '0.00 лв.';
 
   // 4) Обратна връзка
   toast('Денят е приключен.');
@@ -794,6 +796,7 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
 </body>
 </html>
+
 
 
 
