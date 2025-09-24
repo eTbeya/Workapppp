@@ -531,7 +531,7 @@
 
 // End day — изважда само разходите, НЕ брак (обиколка)
 function endDay(){
-  // Има ли нещо за приключване (магазини или разходи от днес)
+  // Има ли какво да приключим (магазини или днешни разходи)
   const hasShopData = shops.some(s =>
     (s.name||'').length || (Number(s.turnover)||0) > 0 || (Number(s.waste)||0) > 0 || (s.note||'').length
   );
@@ -541,6 +541,66 @@ function endDay(){
     toast('Няма данни за деня.');
     return;
   }
+
+  // сборове от магазините
+  const totals = shops.reduce((a,s)=>{
+    const t = Number(s.turnover)||0;
+    const w = Number(s.waste)||0;
+    a.turnover += t;
+    a.waste    += w;
+    a.net      += Math.max(0, t - w);
+    return a;
+  }, {turnover:0, waste:0, net:0});
+
+  const d = now();
+  const entry = {
+    date: d.toLocaleString('bg-BG'),
+    isoDate: isoDate(d),
+    ts: d.getTime(),
+    turnover: +fmt(totals.turnover),
+    waste: +fmt(totals.waste),
+    otherExpenses: +fmt(otherExpenses),
+    net: +fmt(Math.max(0, totals.net - otherExpenses)),
+    shops: shops.map(s=>{
+      const t = Number(s.turnover)||0, w = Number(s.waste)||0;
+      return {
+        name: s.name,
+        turnover: +fmt(t),
+        waste: +fmt(w),
+        net: +fmt(Math.max(0, t - w)),
+        note: s.note || ''
+      };
+    })
+  };
+
+  // 1) Записваме деня + рендър
+  days.unshift(entry); save('days', days);
+  renderDays(); renderWeeks();
+
+  // 2) Чистим текущите магазини и САМО днешните разходи + запис/рендър
+  shops.length = 0; save('shops', shops); renderShops && renderShops();
+
+  const todayIso = isoDate(new Date());
+  for (let i = expenses.length - 1; i >= 0; i--){
+    const x = expenses[i];
+    const expIso = x?.isoDate ?? (x?.ts ? isoDate(new Date(x.ts)) : null);
+    if (expIso === todayIso) expenses.splice(i, 1);
+  }
+  save('expenses', expenses); renderExpenses && renderExpenses();
+
+  // 3) Обновяваме живите тотали горе (и „твърдо“ зануляване)
+  recomputeTotalsToday && recomputeTotalsToday();
+  if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
+  if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = '0.00 лв.';
+
+  // 4) Авто-бекъп (ако е включен) – след записите
+  if (autoBackup) { try { doExport && doExport(); } catch(e){ console.error(e); } }
+
+  // 5) Обратна връзка + безопасен UI reset (PWA кеш понякога държи DOM)
+  toast && toast('Денят е приключен.');
+  setTimeout(()=> location.reload(), 250);
+}
+
 
   // сборове от магазините
   const totals = shops.reduce((a,s)=>{
@@ -607,94 +667,6 @@ onClick('[data-action="day-details"]', (e, btn)=>{
   modal.show();
 });
   
-// End day — изважда само разходите, НЕ брак (обиколка)
-function endDay(){
-  // Има ли нещо за приключване (магазини или разходи от днес)
-  const hasShopData = shops.some(s =>
-    (s.name||'').length || (Number(s.turnover)||0) > 0 || (Number(s.waste)||0) > 0 || (s.note||'').length
-  );
-  const otherExpenses = sumTodayExpenses();
-
-  if(!hasShopData && otherExpenses === 0){
-    toast('Няма данни за деня.');
-    return;
-  }
-
-  // сборове от магазините
-  const totals = shops.reduce((a,s)=>{
-    const t = Number(s.turnover)||0;
-    const w = Number(s.waste)||0;
-    a.turnover += t;
-    a.waste    += w;
-    a.net      += Math.max(0, t - w);
-    return a;
-  }, {turnover:0,waste:0,net:0});
-
-  const d = now();
-  const entry = {
-    date: d.toLocaleString('bg-BG'),
-    isoDate: isoDate(d),
-    ts: d.getTime(),
-    turnover: +fmt(totals.turnover),
-    waste: +fmt(totals.waste),
-    otherExpenses: +fmt(otherExpenses),
-    net: +fmt(Math.max(0, totals.net - otherExpenses)),
-    shops: shops.map(s=>{
-      const t = Number(s.turnover)||0, w = Number(s.waste)||0;
-      return {
-        name: s.name,
-        turnover: +fmt(t),
-        waste: +fmt(w),
-        net: +fmt(Math.max(0, t - w)),
-        note: s.note || ''
-      };
-    })
-  };
-
-  // 1) Записваме деня + рендър
-  days.unshift(entry);
-  save('days', days);
-  renderDays();
-  renderWeeks();
-
-  // 2) Чистим текущите магазини и САМО днешните разходи + запис/рендър
-  shops.length = 0;
-  save('shops', shops);
-  renderShops && renderShops();
-
-  const todayIso = isoDate(new Date());
-  for (let i = expenses.length - 1; i >= 0; i--) {
-    const x = expenses[i];
-    const expIso = x?.isoDate ?? (x?.ts ? isoDate(new Date(x.ts)) : null);
-    if (expIso === todayIso) expenses.splice(i, 1);
-  }
-  save('expenses', expenses);
-  renderExpenses && renderExpenses();
-
-  // 3) Обновяваме живите тотали горе (и „твърдо“ зануляване)
-  recomputeTotalsToday && recomputeTotalsToday();
-  if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
-  if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = '0.00 лв.';
-
-  // 4) Авто-бекъп ако е включен
-  if (autoBackup) {
-    try { doExport && doExport(); } catch(e){ console.error('Auto backup failed:', e); }
-  }
-
-  // 5) Обратна връзка + безопасен UI reset (данните вече са записани)
-  toast && toast('Денят е приключен.');
-  setTimeout(()=> location.reload(), 250);
-} // <— ТАЗИ ЗАКРИВА endDay()
-function renderWeeks(){ /* ... */ }
-    // Изтриване на ден
-    onClick('[data-action="del-day"]', (e, btn)=>{
-      const i = +btn.dataset.i;
-      if(!confirm('Да изтрия ли този ден?')) return;
-      days.splice(i,1);
-      save('days', days);
-      renderDays();
-      renderWeeks();
-    });
 
     // Listeners
     addShopBtn.addEventListener('click', ()=>{ addShopCard(); syncShops(); });
@@ -792,6 +764,7 @@ function renderWeeks(){ /* ... */ }
 
 </body>
 </html>
+
 
 
 
