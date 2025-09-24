@@ -48,12 +48,14 @@
     .totals-col{display:grid; gap:.35rem; justify-items:end; font-variant-numeric:tabular-nums}
     .totals-col .line{display:flex; gap:.5rem}
     .totals-col .line strong{min-width:110px; text-align:right}
+    .toastx{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#111827; color:#fff; padding:.55rem .8rem; border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.2); z-index:9999; font-size:.95rem}
     @media (max-width:480px){.btn-ico{--size:34px;font-size:.85rem;border-radius:10px}.title h1{font-size:1rem}.grid-compact{grid-template-columns:1fr 1fr}.shop-header{padding:.6rem .7rem}.shop-body{padding:.8rem .7rem 1rem}.card{border-radius:16px}}
   </style>
 </head>
 <body>
   <div class="app-header">
     <div class="container py-2 d-flex align-items-center justify-content-between">
+      <div class="title"><h1>Дистрибутор – Контрол</h1></div>
       <div class="toolbar">
         <button class="btn-ico" title="Магазини" aria-label="Магазини" data-scroll="#shops">М</button>
         <button class="btn-ico" title="Доставка" aria-label="Доставка" data-scroll="#delivery" data-variant="pri">Д</button>
@@ -65,6 +67,7 @@
         <label class="btn-ico d-inline-flex align-items-center justify-content-center" title="Импорт" aria-label="Импорт" style="cursor:pointer;">ИМ
           <input id="importInput" type="file" accept=".json" hidden>
         </label>
+        <button id="toggleAutoBackup" class="btn-ico" title="Авто бекъп ON/OFF" aria-pressed="false">АБ</button>
         <button id="resetAll" class="btn-ico" title="Нулирай" aria-label="Нулирай" data-variant="destr">НУ</button>
       </div>
     </div>
@@ -250,7 +253,7 @@
         </div>
         <div class="table-responsive">
           <table class="table table-striped align-middle">
-            <thead><tr><th>Дата</th><th class="text-end">Базлма (бр.)</th><th class="text-end">Мини (бр.)</th><th class="text-end">Сума (лв.)</th><th class="text-end">Действие</th></tr></thead>
+            <thead><tr><th>Дата</th><th class="text-end">Базлма (бр.)</th><th class="text-end">Мини (бр.)</th><th class="text-end">Сума</th><th class="text-end">Действие</th></tr></thead>
             <tbody id="wastesTbody"></tbody>
           </table>
         </div>
@@ -262,6 +265,15 @@
   <script>
   (() => {
     const PRICE_BAZ=1.55, PRICE_MINI=0.55;
+
+    // Tiny toast
+    function toast(msg, ms=1600){
+      try{
+        const t=document.createElement('div'); t.className='toastx'; t.textContent=msg;
+        document.body.appendChild(t); setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .25s'; }, ms-250);
+        setTimeout(()=> t.remove(), ms);
+      }catch(e){ alert(msg); }
+    }
 
     // DOM refs
     const shopsList=document.getElementById('shopsList');
@@ -280,8 +292,6 @@
     const sumBaz=document.getElementById('sumBaz');
     const sumMini=document.getElementById('sumMini');
     const deliveryTotal=document.getElementById('deliveryTotal');
-    const finalizeDeliveryBtn=document.getElementById('finalizeDelivery');
-    const clearDeliveryBtn=document.getElementById('clearDelivery');
 
     const qtyBazWaste=document.getElementById('qtyBazWaste');
     const qtyMiniWaste=document.getElementById('qtyMiniWaste');
@@ -297,6 +307,7 @@
     const exportBtn=document.getElementById('exportBtn');
     const importInput=document.getElementById('importInput');
     const resetAllBtn=document.getElementById('resetAll');
+    const toggleAutoBackupBtn=document.getElementById('toggleAutoBackup');
 
     // Expenses
     const expName=document.getElementById('expName');
@@ -310,6 +321,7 @@
     let days=load('days',[]);
     let wastes=load('wastes',[]);
     let expenses=load('expenses',[]);
+    let autoBackup=load('autoBackup', false); // ON/OFF
 
     // Utils
     function load(k,f){ try{const r=localStorage.getItem(k); return r?JSON.parse(r):f;}catch{return f;} }
@@ -327,6 +339,14 @@
     function attachInputUX(el){ el.addEventListener('focus', e=>e.target.select()); el.addEventListener('beforeinput', e=>{ if(e.inputType==='insertText' && e.target.value==='0'){ e.target.value=''; } }); }
     function smoothScrollTo(sel){ const el=document.querySelector(sel); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }
     document.querySelectorAll('.btn-ico[data-scroll]').forEach(btn=>btn.addEventListener('click', ()=>smoothScrollTo(btn.getAttribute('data-scroll'))));
+
+    // Auto-backup UI
+    function setAutoBackupUI(){
+      if(!toggleAutoBackupBtn) return;
+      toggleAutoBackupBtn.setAttribute('aria-pressed', autoBackup ? 'true' : 'false');
+      toggleAutoBackupBtn.dataset.variant = autoBackup ? 'succ' : 'mut';
+      toggleAutoBackupBtn.title = autoBackup ? 'Авто бекъп: ВКЛ.' : 'Авто бекъп: ИЗКЛ.';
+    }
 
     // Shops UI
     function addShopCard(data={name:'', turnover:'', waste:'', note:''}){
@@ -439,7 +459,7 @@
     function addWasteRow(w,i){
       const tr=document.createElement('tr');
       tr.innerHTML=`<td>${w.date}</td><td class="text-end">${w.qtyBaz}</td><td class="text-end">${w.qtyMini}</td><td class="text-end">${fmt(w.total)} лв.</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
-      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=+e.currentTarget.getAttribute('data-i'); wastes.splice(idx,1); save('wastes',wastes); renderWastes(); /* без recomputeTotalsToday() */ });
+      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=+e.currentTarget.getAttribute('data-i'); wastes.splice(idx,1); save('wastes',wastes); renderWastes(); /* не променяме дневния краен */ });
       wastesTbody.appendChild(tr);
     }
     function renderWastes(){ wastesTbody.innerHTML=''; wastes.forEach(addWasteRow); }
@@ -479,12 +499,39 @@
       totalFinalTodayEl.textContent = money(final);
     }
 
+    // ------- ПРИКЛЮЧЕНИ ДНИ -------
+    function addDayRow(d, i){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.date}</td>
+        <td class="text-end">${money(d.turnover)}</td>
+        <td class="text-end">${money(d.waste)}</td>
+        <td class="text-end">${money(d.otherExpenses || 0)}</td>
+        <td class="text-end"><strong>${money(d.net)}</strong></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary" data-action="day-details" data-i="${i}">Виж</button>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" data-action="del-day" data-i="${i}">Изтрий</button>
+        </td>
+      `;
+      daysTbody.appendChild(tr);
+    }
+    function renderDays(){
+      daysTbody.innerHTML='';
+      if(!days.length){
+        daysTbody.innerHTML = '<tr><td colspan="7" class="muted">Няма данни.</td></tr>';
+        return;
+      }
+      days.forEach(addDayRow);
+    }
+
     // End day — изважда само разходите, НЕ брак (обиколка)
     function endDay(){
       const hasShopData=shops.some(s=>(s.name||'').length || s.turnover>0 || s.waste>0 || (s.note||'').length);
       const otherExpenses = sumTodayExpenses();
       if(!hasShopData && otherExpenses===0){
-        alert('Няма данни за деня.'); return;
+        toast('Няма данни за деня.'); return;
       }
       const totals=shops.reduce((a,s)=>{
         const t=Number(s.turnover)||0, w=Number(s.waste)||0;
@@ -496,7 +543,7 @@
         date:d.toLocaleString('bg-BG'), isoDate:isoDate(d), ts:d.getTime(),
         turnover:+fmt(totals.turnover),
         waste:+fmt(totals.waste),
-        otherExpenses:+fmt(otherExpenses), // новото поле
+        otherExpenses:+fmt(otherExpenses),
         net:+fmt(Math.max(0, totals.net - otherExpenses)),
         shops: shops.map(s=>{
           const t=Number(s.turnover)||0, w=Number(s.waste)||0;
@@ -506,56 +553,17 @@
       days.unshift(entry); save('days',days);
       renderDays(); renderWeeks();
 
+      // чистим магазините
       shops=[]; save('shops',shops);
       renderShops();
-    }
 
-    // Days render (колона Разходи; съвместимост със старото otherOutflows)
-    function renderDays(){
-      daysTbody.innerHTML='';
-      if(!days.length){ daysTbody.innerHTML='<tr><td colspan="7" class="muted">Няма данни.</td></tr>'; return; }
-      days.forEach((d,i)=>{
-        const rowId=`daydet-${i}`;
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${d.date}</td>
-          <td class="text-end">${money(d.turnover)}</td>
-          <td class="text-end">${money(d.waste)}</td>
-          <td class="text-end">${money((d.otherExpenses ?? d.otherOutflows) || 0)}</td>
-          <td class="text-end"><strong>${money(d.net)}</strong></td>
-          <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#${rowId}">Детайли</button></td>
-          <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
-        const details=document.createElement('tr');
-        details.innerHTML=`
-          <td colspan="7" class="p-0">
-            <div id="${rowId}" class="collapse">
-              <div class="p-3">
-                <div class="table-responsive">
-                  <table class="table table-sm mb-0 table-striped">
-                    <thead><tr><th>#</th><th>Магазин</th><th class="text-end">Оборот</th><th class="text-end">Брак</th><th class="text-end">Краен</th><th>Бележка</th></tr></thead>
-                    <tbody>
-                      ${(d.shops||[]).map((s,ix)=>`
-                        <tr>
-                          <td>${ix+1}</td>
-                          <td>${escapeHtml(s.name||'-')}</td>
-                          <td class="text-end">${money(s.turnover||0)}</td>
-                          <td class="text-end">${money(s.waste||0)}</td>
-                          <td class="text-end">${money(s.net||0)}</td>
-                          <td>${escapeHtml(s.note||'')}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                  </table>
-                </div>
-                <div class="mt-2 muted small">Разходи за деня: ${money((d.otherExpenses ?? d.otherOutflows) || 0)}</div>
-              </div>
-            </div>
-          </td>`;
-        tr.querySelector('button.btn-outline-danger').addEventListener('click', (e)=>{
-          const idx=+e.currentTarget.getAttribute('data-i');
-          if(confirm('Изтриване на приключения ден?')){ days.splice(idx,1); save('days',days); renderDays(); renderWeeks(); }
-        });
-        daysTbody.appendChild(tr); daysTbody.appendChild(details);
-      });
+      // Обратна връзка
+      toast('Денят е приключен.');
+
+      // Авто-бекъп при включен режим
+      if (autoBackup) {
+        try { doExport(); } catch(e) { console.error('Auto backup failed:', e); }
+      }
     }
 
     // Weeks
@@ -585,7 +593,7 @@
 
     // Export / Import / Reset
     function doExport(){
-      const payload={version:10, exportedAt: nowBG(), shops, deliveries, days, wastes, expenses};
+      const payload={version:13, exportedAt: nowBG(), shops, deliveries, days, wastes, expenses, autoBackup};
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`distributor-data-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
     }
@@ -599,12 +607,41 @@
           if(data.days){ days=data.days; save('days',days); renderDays(); renderWeeks(); }
           if(data.wastes){ wastes=data.wastes; save('wastes',wastes); renderWastes(); }
           if(data.expenses){ expenses=data.expenses; save('expenses',expenses); renderExpenses(); }
+          if(typeof data.autoBackup==='boolean'){ autoBackup=data.autoBackup; save('autoBackup',autoBackup); setAutoBackupUI(); }
           recomputeTotalsToday();
-          alert('Импортът завърши успешно.');
+          toast('Импортът е готов.');
         }catch(e){ alert('Грешка при импорт: '+e.message); }
       };
       r.readAsText(file,'utf-8');
     }
+
+    // Helper: делегирани кликове
+    function onClick(selector, handler){
+      document.addEventListener('click', (e)=>{
+        const el=e.target.closest(selector);
+        if(el){ e.preventDefault(); try{ handler(e, el); }catch(err){ console.error(err); alert('Грешка: '+err.message); } }
+      });
+    }
+
+    // Детайли за деня
+    onClick('[data-action="day-details"]', (e, btn)=>{
+      const i = +btn.dataset.i;
+      const d = days[i];
+      const shopsTxt = (d.shops || []).map(s =>
+        `${s.name || '—'} · оборот: ${fmt(s.turnover)} · брак: ${fmt(s.waste)} · краен: ${fmt(s.net)}`
+      ).join('\n');
+      alert(`Дата: ${d.date}\nОборот: ${fmt(d.turnover)} лв.\nБрак: ${fmt(d.waste)} лв.\nРазходи: ${fmt(d.otherExpenses||0)} лв.\nКраен: ${fmt(d.net)} лв.\n\nМагазини:\n${shopsTxt || '—'}`);
+    });
+
+    // Изтриване на ден
+    onClick('[data-action="del-day"]', (e, btn)=>{
+      const i = +btn.dataset.i;
+      if(!confirm('Да изтрия ли този ден?')) return;
+      days.splice(i,1);
+      save('days', days);
+      renderDays();
+      renderWeeks();
+    });
 
     // Listeners
     addShopBtn.addEventListener('click', ()=>{ addShopCard(); syncShops(); });
@@ -612,16 +649,18 @@
 
     qtyBaz.addEventListener('input', updateDeliverySums);
     qtyMini.addEventListener('input', updateDeliverySums);
-    clearDeliveryBtn.addEventListener('click', ()=>{ qtyBaz.value=''; qtyMini.value=''; updateDeliverySums(); });
-    finalizeDeliveryBtn.addEventListener('click', ()=>{
+
+    document.getElementById('finalizeDelivery').addEventListener('click', ()=>{
       const qB=Math.max(0, parseInt(qtyBaz.value||0,10));
       const qM=Math.max(0, parseInt(qtyMini.value||0,10));
-      if(qB===0 && qM===0){ alert('Въведи брой за поне един артикул.'); return; }
+      if(qB===0 && qM===0){ toast('Въведи брой за поне един артикул.'); return; }
       const d=now(); const total=qB*PRICE_BAZ + qM*PRICE_MINI;
       deliveries.unshift({date:nowBG(), isoDate:isoDate(d), ts:d.getTime(), qtyBaz:qB, qtyMini:qM, total:Math.round(total*100)/100});
       save('deliveries',deliveries); renderDeliveries();
       qtyBaz.value=''; qtyMini.value=''; updateDeliverySums();
+      toast('Доставката е записана.');
     });
+    document.getElementById('clearDelivery').addEventListener('click', ()=>{ qtyBaz.value=''; qtyMini.value=''; updateDeliverySums(); });
 
     qtyBazWaste.addEventListener('input', updateWasteSums);
     qtyMiniWaste.addEventListener('input', updateWasteSums);
@@ -629,22 +668,24 @@
     finalizeWasteBtn.addEventListener('click', ()=>{
       const qB=Math.max(0, parseInt(qtyBazWaste.value||0,10));
       const qM=Math.max(0, parseInt(qtyMiniWaste.value||0,10));
-      if(qB===0 && qM===0){ alert('Въведи брой за поне един артикул брак.'); return; }
+      if(qB===0 && qM===0){ toast('Въведи брой за поне един артикул брак.'); return; }
       const d=now(); const total=qB*PRICE_BAZ + qM*PRICE_MINI;
       wastes.unshift({date:nowBG(), isoDate:isoDate(d), ts:d.getTime(), qtyBaz:qB, qtyMini:qM, total:Math.round(total*100)/100});
       save('wastes',wastes); renderWastes(); // не влияе на дневния краен
       qtyBazWaste.value=''; qtyMiniWaste.value=''; updateWasteSums();
+      toast('Бракът е записан.');
     });
 
     addExpenseBtn.addEventListener('click', ()=>{
       const name=(expName.value||'').trim();
       const amount=num(expAmount.value);
-      if(!name){ alert('Въведи име/описание.'); return; }
-      if(amount<=0){ alert('Въведи сума > 0.'); return; }
+      if(!name){ toast('Въведи име/описание.'); return; }
+      if(amount<=0){ toast('Въведи сума > 0.'); return; }
       const d=now();
       expenses.unshift({date:nowBG(), isoDate:isoDate(d), ts:d.getTime(), name, amount:+fmt(amount)});
       save('expenses',expenses); renderExpenses(); recomputeTotalsToday();
       expName.value=''; expAmount.value='';
+      toast('Разходът е добавен.');
     });
 
     exportBtn.addEventListener('click', doExport);
@@ -655,16 +696,26 @@
       save('shops',shops); save('deliveries',deliveries); save('days',days); save('wastes',wastes); save('expenses',expenses);
       renderShops(); renderDeliveries(); renderDays(); renderWeeks(); renderWastes(); renderExpenses();
       updateDeliverySums(); updateWasteSums(); recomputeTotalsToday();
+      toast('Всичко е нулирано.');
     });
+
+    // Защита: ако бутонът АБ липсва, да не чупи JS
+    if (toggleAutoBackupBtn) {
+      toggleAutoBackupBtn.addEventListener('click', ()=>{
+        autoBackup = !autoBackup;
+        save('autoBackup', autoBackup);
+        setAutoBackupUI();
+        toast(autoBackup ? 'Авто бекъп: ВКЛ.' : 'Авто бекъп: ИЗКЛ.');
+      });
+    }
 
     // Init
     (function init(){
       renderShops(); renderDeliveries(); renderDays(); renderWeeks(); renderWastes(); renderExpenses();
       updateDeliverySums(); updateWasteSums(); recomputeTotalsToday();
+      setAutoBackupUI();
+      if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
     })();
-
-    // PWA SW
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js'); }
   })();
   </script>
 </body>
