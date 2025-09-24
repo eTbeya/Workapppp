@@ -55,6 +55,7 @@
 <body>
   <div class="app-header">
     <div class="container py-2 d-flex align-items-center justify-content-between">
+      <div class="title"><h1>Дистрибутор – Контрол</h1></div>
       <div class="toolbar">
         <button class="btn-ico" title="Магазини" aria-label="Магазини" data-scroll="#shops">М</button>
         <button class="btn-ico" title="Доставка" aria-label="Доставка" data-scroll="#delivery" data-variant="pri">Д</button>
@@ -260,6 +261,25 @@
     </section>
   </main>
 
+  <!-- Day details modal -->
+  <div class="modal fade" id="dayDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Детайли за деня</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+        </div>
+        <div class="modal-body">
+          <div id="dayDetailsSummary" class="mb-2 small text-muted"></div>
+          <div id="dayDetailsBody"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
   (() => {
@@ -297,8 +317,6 @@
     const sumBazWaste=document.getElementById('sumBazWaste');
     const sumMiniWaste=document.getElementById('sumMiniWaste');
     const wasteTotal=document.getElementById('wasteTotal');
-    const finalizeWasteBtn=document.getElementById('finalizeWaste');
-    const clearWasteBtn=document.getElementById('clearWaste');
     const wastesTbody=document.getElementById('wastesTbody');
 
     const deliveriesTbody=document.getElementById('deliveriesTbody');
@@ -458,7 +476,7 @@
     function addWasteRow(w,i){
       const tr=document.createElement('tr');
       tr.innerHTML=`<td>${w.date}</td><td class="text-end">${w.qtyBaz}</td><td class="text-end">${w.qtyMini}</td><td class="text-end">${fmt(w.total)} лв.</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" data-i="${i}">Изтрий</button></td>`;
-      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=+e.currentTarget.getAttribute('data-i'); wastes.splice(idx,1); save('wastes',wastes); renderWastes(); /* не променяме дневния краен */ });
+      tr.querySelector('button').addEventListener('click',(e)=>{ const idx=+e.currentTarget.getAttribute('data-i'); wastes.splice(idx,1); save('wastes',wastes); renderWastes(); });
       wastesTbody.appendChild(tr);
     }
     function renderWastes(){ wastesTbody.innerHTML=''; wastes.forEach(addWasteRow); }
@@ -500,26 +518,25 @@
 
     // ------- ПРИКЛЮЧЕНИ ДНИ -------
     function addDayRow(d, i){
-  const hasNotes = (d.shops || []).some(s => (s.note || '').trim());
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${d.date}</td>
-    <td class="text-end">${money(d.turnover)}</td>
-    <td class="text-end">${money(d.waste)}</td>
-    <td class="text-end">${money(d.otherExpenses || 0)}</td>
-    <td class="text-end"><strong>${money(d.net)}</strong></td>
-    <td class="text-end">
-      <button class="btn btn-sm btn-outline-secondary" data-action="day-details" data-i="${i}">
-        Виж${hasNotes ? ' 📝' : ''}
-      </button>
-    </td>
-    <td class="text-end">
-      <button class="btn btn-sm btn-outline-danger" data-action="del-day" data-i="${i}">Изтрий</button>
-    </td>
-  `;
-  daysTbody.appendChild(tr);
-}
-
+      const hasNotes = (d.shops || []).some(s => (s.note || '').trim());
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.date}</td>
+        <td class="text-end">${money(d.turnover)}</td>
+        <td class="text-end">${money(d.waste)}</td>
+        <td class="text-end">${money(d.otherExpenses || 0)}</td>
+        <td class="text-end"><strong>${money(d.net)}</strong></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary" data-action="day-details" data-i="${i}">
+            Виж${hasNotes ? ' 📝' : ''}
+          </button>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" data-action="del-day" data-i="${i}">Изтрий</button>
+        </td>
+      `;
+      daysTbody.appendChild(tr);
+    }
     function renderDays(){
       daysTbody.innerHTML='';
       if(!days.length){
@@ -529,86 +546,108 @@
       days.forEach(addDayRow);
     }
 
-// End day — изважда само разходите, НЕ брак (обиколка)
-function endDay(){
-  // Има ли какво да приключим (магазини или днешни разходи)
-  const hasShopData = shops.some(s =>
-    (s.name||'').length || (Number(s.turnover)||0) > 0 || (Number(s.waste)||0) > 0 || (s.note||'').length
-  );
-  const otherExpenses = sumTodayExpenses();
+    // Детайли за деня -> Bootstrap модал (всички магазини + бележки)
+    function showDayDetails(i){
+      const d = days[i];
+      const summary = `Дата: ${d.date} · Оборот: ${fmt(d.turnover)} лв. · Брак: ${fmt(d.waste)} лв. · Разходи: ${fmt(d.otherExpenses||0)} лв. · Краен: ${fmt(d.net)} лв.`;
+      document.getElementById('dayDetailsSummary').textContent = summary;
 
-  if(!hasShopData && otherExpenses === 0){
-    toast('Няма данни за деня.');
-    return;
-  }
+      const list = (d.shops || []).map(s => {
+        const note = (s.note && String(s.note).trim()) ? `<div class="text-muted">Бележка: ${escapeHtml(s.note.trim())}</div>` : '';
+        return `
+          <div class="border rounded p-2 mb-2">
+            <div class="fw-semibold">${escapeHtml(s.name || '—')}</div>
+            <div class="small">Оборот: ${fmt(s.turnover)} · Брак: ${fmt(s.waste)} · Краен: <strong>${fmt(s.net)}</strong></div>
+            ${note}
+          </div>
+        `;
+      }).join('') || '<div class="text-muted">Няма магазини за този ден.</div>';
+      document.getElementById('dayDetailsBody').innerHTML = list;
 
-  // сборове от магазините
-  const totals = shops.reduce((a,s)=>{
-    const t = Number(s.turnover)||0;
-    const w = Number(s.waste)||0;
-    a.turnover += t;
-    a.waste    += w;
-    a.net      += Math.max(0, t - w);
-    return a;
-  }, {turnover:0, waste:0, net:0});
+      const modal = new bootstrap.Modal(document.getElementById('dayDetailsModal'));
+      modal.show();
+    }
 
-  const d = now();
-  const entry = {
-    date: d.toLocaleString('bg-BG'),
-    isoDate: isoDate(d),
-    ts: d.getTime(),
-    turnover: +fmt(totals.turnover),
-    waste: +fmt(totals.waste),
-    otherExpenses: +fmt(otherExpenses),
-    net: +fmt(Math.max(0, totals.net - otherExpenses)),
-    shops: shops.map(s=>{
-      const t = Number(s.turnover)||0, w = Number(s.waste)||0;
-      return {
-        name: s.name,
-        turnover: +fmt(t),
-        waste: +fmt(w),
-        net: +fmt(Math.max(0, t - w)),
-        note: s.note || ''
+    // End day — изважда само разходите, НЕ брак (обиколка)
+    function endDay(){
+      const hasShopData=shops.some(s=>(s.name||'').length || s.turnover>0 || s.waste>0 || (s.note||'').length);
+      const otherExpenses = sumTodayExpenses();
+      if(!hasShopData && otherExpenses===0){
+        toast('Няма данни за деня.'); return;
+      }
+      const totals=shops.reduce((a,s)=>{
+        const t=Number(s.turnover)||0, w=Number(s.waste)||0;
+        a.turnover+=t; a.waste+=w; a.net+=Math.max(0,t-w); return a;
+      },{turnover:0,waste:0,net:0});
+
+      const d=now();
+      const entry={
+        date:d.toLocaleString('bg-BG'), isoDate:isoDate(d), ts:d.getTime(),
+        turnover:+fmt(totals.turnover),
+        waste:+fmt(totals.waste),
+        otherExpenses:+fmt(otherExpenses),
+        net:+fmt(Math.max(0, totals.net - otherExpenses)),
+        shops: shops.map(s=>{
+          const t=Number(s.turnover)||0, w=Number(s.waste)||0;
+          return {name:s.name, turnover:+fmt(t), waste:+fmt(w), net:+fmt(Math.max(0,t-w)), note:s.note||''};
+        })
       };
-    })
-  };
 
-  // 1) Записваме деня + рендър
-  days.unshift(entry); save('days', days);
-  renderDays(); renderWeeks();
+      // 1) запис
+      days.unshift(entry); save('days',days);
+      renderDays(); renderWeeks();
 
-  // 2) Чистим текущите магазини и САМО днешните разходи + запис/рендър
-  shops.length = 0; save('shops', shops); renderShops && renderShops();
+      // 2) чистим текущия ден (магазини + само днешни разходи)
+      shops.length = 0; save('shops', shops); renderShops();
+      const todayIso = isoDate(new Date());
+      for (let i = expenses.length - 1; i >= 0; i--) {
+        const x = expenses[i];
+        const expIso = x?.isoDate ?? (x?.ts ? isoDate(new Date(x.ts)) : null);
+        if (expIso === todayIso) expenses.splice(i, 1);
+      }
+      save('expenses', expenses); renderExpenses();
 
-  const todayIso = isoDate(new Date());
-  for (let i = expenses.length - 1; i >= 0; i--){
-    const x = expenses[i];
-    const expIso = x?.isoDate ?? (x?.ts ? isoDate(new Date(x.ts)) : null);
-    if (expIso === todayIso) expenses.splice(i, 1);
-  }
-  save('expenses', expenses); renderExpenses && renderExpenses();
+      // 3) обновяваме живите тотали (и „твърдо“ нулиране)
+      recomputeTotalsToday();
+      if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
+      if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = '0.00 лв.';
 
-  // 3) Обновяваме живите тотали горе (и „твърдо“ зануляване)
-  recomputeTotalsToday && recomputeTotalsToday();
-  if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
-  if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = '0.00 лв.';
+      // 4) авто-бекъп ако е включен
+      if (autoBackup) { try { doExport(); } catch(e){ console.error('Auto backup failed:', e); } }
 
-  // 4) Авто-бекъп (ако е включен) – след записите
-  if (autoBackup) { try { doExport && doExport(); } catch(e){ console.error(e); } }
+      // 5) обратна връзка + малък UI reset (PWA понякога кешира DOM)
+      toast('Денят е приключен.');
+      setTimeout(()=> location.reload(), 200);
+    }
 
-  // 5) Обратна връзка + безопасен UI reset (PWA кеш понякога държи DOM)
-  toast && toast('Денят е приключен.');
-  setTimeout(()=> location.reload(), 250);
-}
-
-
-  // сборове от магазините
-  const totals = shops.reduce((a,s)=>{
-
+    // Weeks (Пон–Пет)
+    function renderWeeks(){
+      weeksTbody.innerHTML='';
+      if(!days.length){ weeksTbody.innerHTML='<tr><td colspan="4" class="muted">Няма данни.</td></tr>'; return; }
+      const map={};
+      for(const d of days){
+        const dt=dayToDate(d);
+        const key=weekKeyMonFri(dt.getTime());
+        if(!map[key]) map[key]={turnover:0,waste:0,net:0};
+        map[key].turnover+=(Number(d.turnover)||0);
+        map[key].waste+=(Number(d.waste)||0);
+        map[key].net+=(Number(d.net)||0);
+      }
+      const rows=Object.entries(map)
+        .sort((a,b)=> new Date(b[0].slice(0,10)) - new Date(a[0].slice(0,10)))
+        .map(([wk,v])=>`
+          <tr>
+            <td>${wk}</td>
+            <td class="text-end">${money(v.turnover)}</td>
+            <td class="text-end">${money(v.waste)}</td>
+            <td class="text-end"><strong>${money(v.net)}</strong></td>
+          </tr>`).join('');
+      weeksTbody.innerHTML=rows||'<tr><td colspan="4" class="muted">Няма данни.</td></tr>';
+    }
 
     // Export / Import / Reset
     function doExport(){
-      const payload={version:13, exportedAt: nowBG(), shops, deliveries, days, wastes, expenses, autoBackup};
+      const payload={version:14, exportedAt: nowBG(), shops, deliveries, days, wastes, expenses, autoBackup};
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`distributor-data-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
     }
@@ -630,43 +669,19 @@ function endDay(){
       r.readAsText(file,'utf-8');
     }
 
-    // Helper: делегирани кликове
+    // Делегирани кликове (generic)
     function onClick(selector, handler){
       document.addEventListener('click', (e)=>{
         const el=e.target.closest(selector);
         if(el){ e.preventDefault(); try{ handler(e, el); }catch(err){ console.error(err); alert('Грешка: '+err.message); } }
       });
     }
-
-    // Детайли за деня
-    // Детайли за деня (с бележки под всеки магазин)
-onClick('[data-action="day-details"]', (e, btn)=>{
-  const i = +btn.dataset.i;
-  const d = days[i];
-
-  // Обобщение горе
-  const summary = `Дата: ${d.date} · Оборот: ${fmt(d.turnover)} лв. · Брак: ${fmt(d.waste)} лв. · Разходи: ${fmt(d.otherExpenses||0)} лв. · Краен: ${fmt(d.net)} лв.`;
-  document.getElementById('dayDetailsSummary').textContent = summary;
-
-  // Списък магазини (скролируем)
-  const list = (d.shops || []).map(s => {
-    const note = (s.note && String(s.note).trim()) ? `<div class="text-muted">Бележка: ${s.note.trim()}</div>` : '';
-    return `
-      <div class="border rounded p-2 mb-2">
-        <div class="fw-semibold">${(s.name || '—')}</div>
-        <div class="small">Оборот: ${fmt(s.turnover)} · Брак: ${fmt(s.waste)} · Краен: <strong>${fmt(s.net)}</strong></div>
-        ${note}
-      </div>
-    `;
-  }).join('') || '<div class="text-muted">Няма магазини за този ден.</div>';
-
-  document.getElementById('dayDetailsBody').innerHTML = list;
-
-  // Показване на модала
-  const modal = new bootstrap.Modal(document.getElementById('dayDetailsModal'));
-  modal.show();
-});
-  
+    onClick('[data-action="day-details"]', (e, btn)=> showDayDetails(+btn.dataset.i));
+    onClick('[data-action="del-day"]', (e, btn)=>{
+      const i = +btn.dataset.i;
+      if(!confirm('Да изтрием ли този ден?')) return;
+      days.splice(i,1); save('days', days); renderDays(); renderWeeks();
+    });
 
     // Listeners
     addShopBtn.addEventListener('click', ()=>{ addShopCard(); syncShops(); });
@@ -674,7 +689,6 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
     qtyBaz.addEventListener('input', updateDeliverySums);
     qtyMini.addEventListener('input', updateDeliverySums);
-
     document.getElementById('finalizeDelivery').addEventListener('click', ()=>{
       const qB=Math.max(0, parseInt(qtyBaz.value||0,10));
       const qM=Math.max(0, parseInt(qtyMini.value||0,10));
@@ -689,8 +703,8 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
     qtyBazWaste.addEventListener('input', updateWasteSums);
     qtyMiniWaste.addEventListener('input', updateWasteSums);
-    clearWasteBtn.addEventListener('click', ()=>{ qtyBazWaste.value=''; qtyMiniWaste.value=''; updateWasteSums(); });
-    finalizeWasteBtn.addEventListener('click', ()=>{
+    document.getElementById('clearWaste').addEventListener('click', ()=>{ qtyBazWaste.value=''; qtyMiniWaste.value=''; updateWasteSums(); });
+    document.getElementById('finalizeWaste').addEventListener('click', ()=>{
       const qB=Math.max(0, parseInt(qtyBazWaste.value||0,10));
       const qM=Math.max(0, parseInt(qtyMiniWaste.value||0,10));
       if(qB===0 && qM===0){ toast('Въведи брой за поне един артикул брак.'); return; }
@@ -724,7 +738,7 @@ onClick('[data-action="day-details"]', (e, btn)=>{
       toast('Всичко е нулирано.');
     });
 
-    // Защита: ако бутонът АБ липсва, да не чупи JS
+    // Авто-бекъп бутон
     if (toggleAutoBackupBtn) {
       toggleAutoBackupBtn.addEventListener('click', ()=>{
         autoBackup = !autoBackup;
@@ -743,32 +757,5 @@ onClick('[data-action="day-details"]', (e, btn)=>{
     })();
   })();
   </script>
-  <!-- Day details modal -->
-<div class="modal fade" id="dayDetailsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Детайли за деня</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
-      </div>
-      <div class="modal-body">
-        <div id="dayDetailsSummary" class="mb-2 small text-muted"></div>
-        <div id="dayDetailsBody"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
-
-
-
-
-
-
-
-
