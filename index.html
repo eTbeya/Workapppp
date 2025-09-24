@@ -596,24 +596,19 @@ for (let i = expenses.length - 1; i >= 0; i--) {
 save('expenses', expenses);
 renderExpenses && renderExpenses();
 
-// 3) Обновяваме живите тотали горе (двойна защита за UI)
-recomputeTotalsToday && recomputeTotalsToday();
-if (typeof totalOutflowsTodayEl !== 'undefined' && totalOutflowsTodayEl) {
-  totalOutflowsTodayEl.textContent = '0.00 лв.';
-}
-if (typeof totalFinalTodayEl !== 'undefined' && totalFinalTodayEl) {
-  // към този момент и shops са 0, така че финалът също е 0
-  totalFinalTodayEl.textContent = '0.00 лв.';
-}
-  // 4) Обратна връзка
-  toast('Денят е приключен.');
+// 3) Обновяваме живите тотали горе
+recomputeTotalsToday();
+if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
+if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = '0.00 лв.';
 
-  // 5) Авто-бекъп ако е включен
-  if (autoBackup) {
-    try { doExport(); } catch(e){ console.error('Auto backup failed:', e); }
-  }
-}
+// 4) Обратна връзка + твърд UI reset (данните вече са записани)
+toast('Денят е приключен.');
+setTimeout(()=> location.reload(), 120);
 
+// 5) Авто-бекъп ако е включен
+if (autoBackup) {
+  try { doExport(); } catch(e){ console.error('Auto backup failed:', e); }
+}
     // Weeks
     function renderWeeks(){
       weeksTbody.innerHTML='';
@@ -808,6 +803,7 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
 </body>
 </html>
+
 
 
 
