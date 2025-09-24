@@ -632,20 +632,30 @@
 onClick('[data-action="day-details"]', (e, btn)=>{
   const i = +btn.dataset.i;
   const d = days[i];
-  const shopsTxt = (d.shops || []).map(s => {
-    const note = (s.note && String(s.note).trim()) ? `\nБележка: ${s.note.trim()}` : '';
-    return `${s.name || '—'} · оборот: ${fmt(s.turnover)} · брак: ${fmt(s.waste)} · краен: ${fmt(s.net)}${note}`;
-  }).join('\n\n');
 
-  alert(
-    `Дата: ${d.date}\n` +
-    `Оборот: ${fmt(d.turnover)} лв.\n` +
-    `Брак: ${fmt(d.waste)} лв.\n` +
-    `Разходи: ${fmt(d.otherExpenses||0)} лв.\n` +
-    `Краен: ${fmt(d.net)} лв.\n\n` +
-    (shopsTxt || 'Магазини: —')
-  );
+  // Обобщение горе
+  const summary = `Дата: ${d.date} · Оборот: ${fmt(d.turnover)} лв. · Брак: ${fmt(d.waste)} лв. · Разходи: ${fmt(d.otherExpenses||0)} лв. · Краен: ${fmt(d.net)} лв.`;
+  document.getElementById('dayDetailsSummary').textContent = summary;
+
+  // Списък магазини (скролируем)
+  const list = (d.shops || []).map(s => {
+    const note = (s.note && String(s.note).trim()) ? `<div class="text-muted">Бележка: ${s.note.trim()}</div>` : '';
+    return `
+      <div class="border rounded p-2 mb-2">
+        <div class="fw-semibold">${(s.name || '—')}</div>
+        <div class="small">Оборот: ${fmt(s.turnover)} · Брак: ${fmt(s.waste)} · Краен: <strong>${fmt(s.net)}</strong></div>
+        ${note}
+      </div>
+    `;
+  }).join('') || '<div class="text-muted">Няма магазини за този ден.</div>';
+
+  document.getElementById('dayDetailsBody').innerHTML = list;
+
+  // Показване на модала
+  const modal = new bootstrap.Modal(document.getElementById('dayDetailsModal'));
+  modal.show();
 });
+  
 
 
     // Изтриване на ден
@@ -733,5 +743,24 @@ onClick('[data-action="day-details"]', (e, btn)=>{
     })();
   })();
   </script>
+  <!-- Day details modal -->
+<div class="modal fade" id="dayDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Детайли за деня</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+      </div>
+      <div class="modal-body">
+        <div id="dayDetailsSummary" class="mb-2 small text-muted"></div>
+        <div id="dayDetailsBody"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
