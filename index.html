@@ -529,62 +529,76 @@
       days.forEach(addDayRow);
     }
 
-    // End day — изважда само разходите, НЕ брак (обиколка)
-    function endDay(){
-      const hasShopData=shops.some(s=>(s.name||'').length || s.turnover>0 || s.waste>0 || (s.note||'').length);
-      const otherExpenses = sumTodayExpenses();
-      if(!hasShopData && otherExpenses===0){
-        toast('Няма данни за деня.'); return;
-      }
-      const totals=shops.reduce((a,s)=>{
-        const t=Number(s.turnover)||0, w=Number(s.waste)||0;
-        a.turnover+=t; a.waste+=w; a.net+=Math.max(0,t-w); return a;
-      },{turnover:0,waste:0,net:0});
-
-      const d=now();
-      const entry={
-        date:d.toLocaleString('bg-BG'), isoDate:isoDate(d), ts:d.getTime(),
-        turnover:+fmt(totals.turnover),
-        waste:+fmt(totals.waste),
-        otherExpenses:+fmt(otherExpenses),
-        net:+fmt(Math.max(0, totals.net - otherExpenses)),
-        shops: shops.map(s=>{
-          const t=Number(s.turnover)||0, w=Number(s.waste)||0;
-          return {name:s.name, turnover:+fmt(t), waste:+fmt(w), net:+fmt(Math.max(0,t-w)), note:s.note||''};
-        })
-      };
-      days.unshift(entry); save('days',days);
-      renderDays(); renderWeeks();
-
+// End day — изважда само разходите, НЕ брак (обиколка)
 function endDay(){
-  if(!shops.length && !expenses.length){toast('Няма данни.');return;}
+  // Има ли нещо за приключване (магазини или разходи от днес)
+  const hasShopData = shops.some(s =>
+    (s.name||'').length || (Number(s.turnover)||0) > 0 || (Number(s.waste)||0) > 0 || (s.note||'').length
+  );
+  const otherExpenses = sumTodayExpenses();
 
-  const totals = shops.reduce((a,s)=>{ ... },{turnover:0,waste:0});
-  const out = expenses.reduce((a,x)=>a+(x.amount||0),0);
+  if(!hasShopData && otherExpenses === 0){
+    toast('Няма данни за деня.');
+    return;
+  }
 
-  const entry = { ... };
+  // сборове от магазините
+  const totals = shops.reduce((a,s)=>{
+    const t = Number(s.turnover)||0;
+    const w = Number(s.waste)||0;
+    a.turnover += t;
+    a.waste    += w;
+    a.net      += Math.max(0, t - w);
+    return a;
+  }, {turnover:0,waste:0,net:0});
 
+  const d = now();
+  const entry = {
+    date: d.toLocaleString('bg-BG'),
+    isoDate: isoDate(d),
+    ts: d.getTime(),
+    turnover: +fmt(totals.turnover),
+    waste: +fmt(totals.waste),
+    otherExpenses: +fmt(otherExpenses),
+    net: +fmt(Math.max(0, totals.net - otherExpenses)),
+    shops: shops.map(s=>{
+      const t = Number(s.turnover)||0, w = Number(s.waste)||0;
+      return {
+        name: s.name,
+        turnover: +fmt(t),
+        waste: +fmt(w),
+        net: +fmt(Math.max(0, t - w)),
+        note: s.note || ''
+      };
+    })
+  };
+
+  // 1) Записваме деня + рендър
   days.unshift(entry);
+  save('days', days);
   renderDays();
+  renderWeeks();
+
+  // 2) Чистим текущите магазини и разходи + запис/рендър
   shops = [];
+  save('shops', shops);
+  renderShops();
+
   expenses = [];
+  save('expenses', expenses);
+  renderExpenses();
+
+  // 3) Обновяваме живите тотали горе
   recomputeTotalsToday();
 
+  // 4) Обратна връзка
   toast('Денят е приключен.');
+
+  // 5) Авто-бекъп ако е включен
+  if (autoBackup) {
+    try { doExport(); } catch(e){ console.error('Auto backup failed:', e); }
+  }
 }
-      
-      // чистим магазините
-      shops=[]; save('shops',shops);
-      renderShops();
-
-      // Обратна връзка
-      toast('Денят е приключен.');
-
-      // Авто-бекъп при включен режим
-      if (autoBackup) {
-        try { doExport(); } catch(e) { console.error('Auto backup failed:', e); }
-      }
-    }
 
     // Weeks
     function renderWeeks(){
@@ -780,5 +794,6 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
 </body>
 </html>
+
 
 
