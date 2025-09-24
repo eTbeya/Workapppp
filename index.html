@@ -556,6 +556,23 @@
       days.unshift(entry); save('days',days);
       renderDays(); renderWeeks();
 
+function endDay(){
+  if(!shops.length && !expenses.length){toast('Няма данни.');return;}
+
+  const totals = shops.reduce((a,s)=>{ ... },{turnover:0,waste:0});
+  const out = expenses.reduce((a,x)=>a+(x.amount||0),0);
+
+  const entry = { ... };
+
+  days.unshift(entry);
+  renderDays();
+  shops = [];
+  expenses = [];
+  recomputeTotalsToday();
+
+  toast('Денят е приключен.');
+}
+      
       // чистим магазините
       shops=[]; save('shops',shops);
       renderShops();
@@ -763,4 +780,5 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
 </body>
 </html>
+
 
