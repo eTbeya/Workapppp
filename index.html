@@ -580,19 +580,31 @@ function endDay(){
   renderWeeks();
 
   // 2) Чистим текущите магазини и разходи + запис/рендър
-shops = [];
+
+// магазини
+shops.length = 0;                   // чистене in-place (по-сигурно от shops = [])
 save('shops', shops);
-renderShops();
+renderShops && renderShops();
 
-expenses = [];
+// разходи: чистим САМО днешните, in-place
+const todayIso = isoDate(new Date());
+for (let i = expenses.length - 1; i >= 0; i--) {
+  const x = expenses[i];
+  const expIso = x?.isoDate ?? (x?.ts ? isoDate(new Date(x.ts)) : null);
+  if (expIso === todayIso) expenses.splice(i, 1);
+}
 save('expenses', expenses);
-renderExpenses();
+renderExpenses && renderExpenses();
 
-// 3) Обновяваме живите тотали горе (пресмятане + твърдо зануляване като защита)
-recomputeTotalsToday();
-if (totalOutflowsTodayEl) totalOutflowsTodayEl.textContent = '0.00 лв.';
-if (totalFinalTodayEl)    totalFinalTodayEl.textContent    = totalShopsNetEl ? totalShopsNetEl.textContent : '0.00 лв.';
-
+// 3) Обновяваме живите тотали горе (двойна защита за UI)
+recomputeTotalsToday && recomputeTotalsToday();
+if (typeof totalOutflowsTodayEl !== 'undefined' && totalOutflowsTodayEl) {
+  totalOutflowsTodayEl.textContent = '0.00 лв.';
+}
+if (typeof totalFinalTodayEl !== 'undefined' && totalFinalTodayEl) {
+  // към този момент и shops са 0, така че финалът също е 0
+  totalFinalTodayEl.textContent = '0.00 лв.';
+}
   // 4) Обратна връзка
   toast('Денят е приключен.');
 
@@ -796,6 +808,7 @@ onClick('[data-action="day-details"]', (e, btn)=>{
 
 </body>
 </html>
+
 
 
 
